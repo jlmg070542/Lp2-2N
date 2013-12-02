@@ -1,0 +1,934 @@
+import java.util.Scanner;
+import java.io.*;
+
+import com.sun.org.apache.xml.internal.security.Init;
+
+public class PrincipalLabirinto {
+
+	public static void main(String[] args) {
+
+		String a = "";
+		String aux = "";
+		BufferedReader entra = new BufferedReader(new InputStreamReader(
+				System.in));
+
+		/*
+		 * Lê o texto de um fluxo de caracteres-entrada, buffer personagens de
+		 * modo a proporcionar para a leitura eficiente de caracteres, matrizes
+		 * e linhas. O tamanho do buffer pode ser especificado, ou o tamanho
+		 * padrão podem ser usados. O padrão é grande o suficiente para a
+		 * maioria dos propósitos. Em geral, cada pedido de leitura feita de um
+		 * leitor faz um pedido de leitura correspondente a ser feito do
+		 * carácter subjacente ou fluxo de bytes. Portanto, é aconselhável para
+		 * embrulhar um BufferedReader em torno de qualquer leitor cujo read ()
+		 * operações podem ser caros, como FileReaders e InputStreamReaders. Por
+		 * exemplo, BufferedReader em = New BufferedReader (new FileReader
+		 * ("foo.in")); vai tamponar a entrada do arquivo especificado. Sem
+		 * buffer, cada chamada de read () ou readLine () pode causar bytes a
+		 * ser lido a partir do arquivo, convertida em caracteres, e depois
+		 * voltou, o que pode ser muito ineficiente. Programas que usam
+		 * DataInputStreams para entrada textual pode ser localizado através da
+		 * substituição de cada DataInputStream com um BufferedReader
+		 * apropriado. mapa m = new mapa();
+		 */
+
+		mapa m = null;
+		m.abrir();
+		m.LugarInicial();
+
+		while (!aux.equals("O") || !aux.equals("o")) {
+			try {
+				System.out
+						.println("Ande pelo labirinto digitando a ação desejada: \n");
+				aux = entra.readLine();
+
+				System.out.println(aux);
+
+				if (aux.equals("Ajuda")) {
+					a += "Andar Norte        - Passar pela porta norte \n";
+					a += "Andar Sul          - Passar pela porta sul \n";
+					a += "Andar Leste        - Passar pela porta leste \n";
+					a += "Andar Oeste        - Passar pela porta oeste \n";
+					a += "Subir Escada       - Subir o andar \n";
+					a += "Descer Escada      - Descer o andar \n";
+					a += "Ver Mochila        - Ver os itens carregados \n";
+					a += "Ver Ajuda          - Ver os comandos de ajuda \n";
+					a += "Descrever Sala     - Descreve a sala onde você está \n";
+					a += "Desarmar Armadilha - Desarma a armadilha encontrada \n";
+					a += "Pegar Arma         - Pega Arma do tesouro \n";
+					a += "Pegar Armadura     - Pega Armadura do tesouro \n";
+					a += "Pegar Cura         - Pega Poção de Cura do tesouro \n";
+					a += "Pegar Chave        - Pega Chave do tesouro \n";
+					a += "Fechar Jogo        - Escolhe fechar o jogo \n";
+				}
+
+				if (aux.equals("Andar Norte") || aux.equals("Andar Sul")
+						|| aux.equals("Andar Leste")
+						|| aux.equals("Andar Oeste")
+						|| aux.equals("Subir Escada")
+						|| aux.equals("Descer escada")) {
+					m.andar(aux);
+				}
+
+				if (aux.equals("Ver Mochila")) {
+					m.listaMochila();
+				}
+				if (aux.equals("Descrever Sala")) {
+					m.descrever();
+				}
+				if (aux.equals("Desarmar Armadilha")) {
+					m.desarmarArmadilha();
+				}
+				if ((aux.equals("Pegar Arma"))
+						|| (aux.equals("Pegar Armadura"))
+						|| (aux.equals("Pegar Chave"))
+						|| (aux.equals("Pegar Cura"))
+						|| (aux.equals("Pegar Fogo"))) {
+					m.pegarTesouro(aux);
+				}
+				if (aux.equals("Fechar Jogo")) {
+					aux = "O";
+				}
+
+				System.out.println(a);
+				a = "";
+			} catch (IOException exception) {
+				exception.printStackTrace();
+			}
+		}
+	}
+}
+
+class mapa<i, ini, inic> {
+
+	private String[][] sala = new String[1000][7];
+
+	private String[][] cor = new String[1000][7];
+
+	private String[][] trap = new String[1000][7];
+
+	private String[][] inimigo = new String[1000][7];
+
+	private String[][] tesouro = new String[1000][7];
+
+	private String[][] dadosInimigo = new String[1000][7];
+
+	private int posicao = 0; // guarda a posição do personagem.
+	private int nDirecao = 0;
+
+	Inventario i = new Inventario();
+	tesouro tes = new tesouro();
+	InimigoCase ini = new InimigoCase();
+	personagem p = new personagem();
+
+	public void abrir() { // aqui abre o arquivo e e possibilita montar a matriz
+							// do labirinto
+
+		for (int i = 0; i < 1000; i++) { // zera o mapa (salas, armadilhas e
+											// inimigos)
+			for (int j = 0; j < 7; j++) {
+				sala[i][j] = "N";
+				trap[i][j] = "N";
+				inimigo[i][j] = "N";
+				cor[i][j] = "N";
+				tesouro[i][j] = "N";
+				dadosInimigo[i][j] = "N";
+			}
+		}
+
+		// garanto a linha zero da matriz das salas para as saídas.
+		for (int j = 0; j < 7; j++) {
+			sala[0][j] = "SAIDA";
+		}
+
+		String caminhonome = ""; // serve para pegar o 'caminhonome' do arquivo
+		int n = 0; // serve para guardar o número da sala em String
+		String aux = ""; // serve para auxiliar as conversões de int para String
+		String direcao = ""; // serve para guardar a direção da conexão
+
+		Scanner entra = new Scanner(System.in);
+		while (caminhonome == "") {
+			System.out
+					.println("Digite o caminho, nome e extensão do arquivo do labirinto:");
+			caminhonome = entra.next();
+		}
+
+		try {
+			FileInputStream fis = new FileInputStream(caminhonome);
+			Scanner scanner = new Scanner(fis);
+
+			while (scanner.hasNext("room")) {
+				scanner.next();
+				// guarda o número da sala
+				n = scanner.nextInt();
+				tesouro[n][1] = tes.arma();
+				tesouro[n][2] = tes.armadura();
+				tesouro[n][3] = tes.Chave();
+				tesouro[n][4] = tes.curaPocao();
+				while (scanner.hasNext("south") || scanner.hasNext("north")
+						|| scanner.hasNext("east") || scanner.hasNext("west")
+						|| scanner.hasNext("up") || scanner.hasNext("down")) {
+					// pula e guarda a próxima direção
+					direcao = scanner.next();
+					if (direcao.equals("north")) {
+						nDirecao = 1;
+					}
+					if (direcao.equals("south")) {
+						nDirecao = 2;
+					}
+					if (direcao.equals("east")) {
+						nDirecao = 3;
+					}
+					if (direcao.equals("west")) {
+						nDirecao = 4;
+					}
+					if (direcao.equals("up")) {
+						nDirecao = 5;
+					}
+					if (direcao.equals("down")) {
+						nDirecao = 6;
+					}
+					// busco o número da sala de conexão e guardo na sala:
+					aux = scanner.next();
+					sala[n][nDirecao] = aux;
+					cor[n][nDirecao] = cor();
+					if (scanner.hasNext("TRAP")) {
+						// se tiver TRAP, somo ao número da sala de conexão a
+						// String 'TRAP' e guardo na matriz trap:
+						aux = " " + scanner.next();
+						trap[n][nDirecao] = aux;
+					}
+
+					inimigo[n][nDirecao] = ini.Tipo();
+					if (!inimigo[n][nDirecao].equals("N")) {
+						geraInimigo(inimigo[n][nDirecao], n, nDirecao);
+					}
+					// limpo a aux para próximo uso
+					aux = "";
+				}
+				// limpo a n para próximo uso
+				n = 0;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		for (int i = 0; i < 40; i++) {
+			System.out.println("Sala " + i + " Norte " + sala[i][1]
+					+ trap[i][1] + inimigo[i][1] + " Sul " + sala[i][2]
+					+ trap[i][2] + inimigo[i][2] + " Leste " + sala[i][3]
+					+ trap[i][3] + inimigo[i][3] + " Oeste " + sala[i][4]
+					+ trap[i][4] + inimigo[i][4] + " Acima " + sala[i][5]
+					+ trap[i][5] + inimigo[i][5] + " Abaixo " + sala[i][6]
+					+ trap[i][6] + inimigo[i][6]);
+		}
+	}
+
+	public void LugarInicial() { // cria a localização incial
+		int w = 0;
+		int k = 1;
+		while (w == 0) {
+			k = (int) (1 + (Math.random() * 1000));
+			if (!sala[k][1].equals("N") || !sala[k][2].equals("N")
+					|| !sala[k][3].equals("N") || !sala[k][4].equals("N")
+					|| !sala[k][5].equals("N") || !sala[k][6].equals("N")) {
+				w = 1;
+			}
+		}
+
+		posicao = k;
+		i.criaInventario();
+		salaPresa();
+
+		descrever();
+	}
+
+	public void salaPresa() {
+		int r = 0, n = 0;
+		String aux = "";
+		// testo se todas as portas estão fechadas
+		aux = tesouro[posicao][3];
+		for (int j = 0; j < 7; j++) {
+			// testo se há chave no chão para abrir uma das portas da sala
+			if (!cor[posicao][j].equals("N")) {
+				if (!cor[posicao][j].equals(aux)) {
+					r++;
+				}
+				n++;
+			}
+		}
+		for (int j = 0; j < 7; j++) {
+			if (cor[posicao][j].equals("Marrom")) {
+				r = 0;
+			}
+		}
+		if (r == n) {
+			descrever();
+			System.out.println("\n Você está preso nesta sala.");
+			System.exit(0);
+		}
+	}
+
+	public void descrever() {// Descreve o lugar onde o personagem está
+		String a = "";
+		if (posicao == 0) {
+			System.out
+					.println("Parabéns! Você conseguiu escapar do Labirinto!");
+			System.exit(0);
+		}
+
+		a += "Você está na Sala " + posicao + "\n";
+
+		if (!sala[posicao][1].equals("N")) {
+			a += "Porta " + cor[posicao][1] + " ao norte. ";
+			if (!inimigo[posicao][1].equals("N")) {
+				a += "Há um " + inimigo[posicao][1] + " bloquando esta porta. ";
+			}
+			if (!trap[posicao][1].equals("N")) {
+				a += "Há uma armadilha nesta porta. ";
+			}
+			a += "\n";
+		}
+		if (!sala[posicao][2].equals("N")) {
+			a += "Porta " + cor[posicao][2] + " ao sul. ";
+			if (!inimigo[posicao][2].equals("N")) {
+				a += "Há um " + inimigo[posicao][2] + " bloquando esta porta.";
+			}
+			if (!trap[posicao][2].equals("N")) {
+				a += "Há uma armadilha nesta porta. ";
+			}
+			a += "\n";
+		}
+		if (!sala[posicao][3].equals("N")) {
+			a += "Porta " + cor[posicao][3] + " ao leste; ";
+			if (!inimigo[posicao][3].equals("N")) {
+				a += "Há um " + inimigo[posicao][3] + " bloquando esta porta.";
+			}
+			if (!trap[posicao][3].equals("N")) {
+				a += "Há uma armadilha nesta porta. ";
+			}
+			a += "\n";
+		}
+		if (!sala[posicao][4].equals("N")) {
+			a += "Porta " + cor[posicao][4] + " a oeste; ";
+			if (!inimigo[posicao][4].equals("N")) {
+				a += "Há um " + inimigo[posicao][4] + " bloquando esta porta.";
+			}
+			if (!trap[posicao][4].equals("N")) {
+				a += "Há uma armadilha nesta porta. ";
+			}
+			a += "\n";
+		}
+		if (!sala[posicao][5].equals("N")) {
+			a += "Escada " + cor[posicao][5] + " para Subir; ";
+			if (!inimigo[posicao][5].equals("N")) {
+				a += "Há um " + inimigo[posicao][5] + " bloquando esta Escada.";
+			}
+			if (!trap[posicao][5].equals("N")) {
+				a += "Há uma armadilha nesta Escada. ";
+			}
+			a += "\n";
+		}
+		if (!sala[posicao][6].equals("N")) {
+			a += "Escada " + cor[posicao][6] + " para descer; ";
+			if (!inimigo[posicao][6].equals("N")) {
+				a += "Há um " + inimigo[posicao][6] + " bloquando esta Escada.";
+			}
+			if (!trap[posicao][6].equals("N")) {
+				a += "Há uma armadilha nesta Escada. ";
+			}
+			a += "\n";
+		}
+
+		for (int i = 0; i < 7; i++) {
+			if (!tesouro[posicao][i].equals("N")) {
+				a += "Tesouro: " + tesouro[posicao][i] + "\n";
+			}
+
+		}
+		System.out.println(a);
+	}
+
+	public void andar(String comando) {// move o personagem pelo labirinto
+
+		String aux = "";
+
+		if (comando.equals("Andar Norte")) {
+			nDirecao = 1;
+		}
+		if (comando.equals("Andar Sul")) {
+			nDirecao = 2;
+		}
+		if (comando.equals("Andar Leste")) {
+			nDirecao = 3;
+		}
+		if (comando.equals("Andar Oeste")) {
+			nDirecao = 4;
+		}
+		if (comando.equals("Subir Escada")) {
+			nDirecao = 5;
+		}
+		if (comando.equals("Descer Escada")) {
+			nDirecao = 6;
+		}
+
+		if (sala[posicao][nDirecao].equals("N")) { // Testa se há sala para onde
+													// o jogador quer se mover
+			System.out.println("Não há porta para esta direção. \n");
+		} else {
+			// testa se há inimigo na porta e leva para o método de combate
+			if (!inimigo[posicao][nDirecao].equals("N")) {
+				aux = combate(posicao, nDirecao);
+
+				if (!aux.equals(inimigo[posicao][nDirecao])) {
+					inimigo[posicao][nDirecao] = aux;
+				}
+			} else {
+				// testa se há armadilha na porta e leva para o método de dano
+				// da armadilha
+				if (trap[posicao][nDirecao].equals("TRAP")) {
+					danoArmadilha();
+				}
+			}
+
+			if ((!cor[posicao][nDirecao].equals("D"))
+					|| (!cor[posicao][nDirecao].equals("Marrom"))) {
+				abrirPorta(nDirecao);
+			}
+
+			if (inimigo[posicao][nDirecao].equals("N")) {
+				if (cor[posicao][nDirecao].equals("Marrom")) {
+					// comando que move o personagem para a próxima sala
+					posicao = Integer.parseInt(sala[posicao][nDirecao]);
+				}
+			}
+		}
+		salaPresa();
+		descrever();
+	}
+
+	// Este método teste se há chave para abrir a porta correspondente.
+	public void abrirPorta(int nDirecao) {
+		// recupera a chave que o personagem carrega
+		String aux = i.listatesouro();
+		// testa se a chave que o personagem carrega é igual à cor da porta
+		if (cor[posicao][nDirecao].equals(aux)) {
+			cor[posicao][nDirecao] = "Marrom";
+			System.out.println("Você abriu esta porta.");
+		} else {
+			if (!cor[posicao][nDirecao].equals("Marrom")) {
+				System.out
+						.println("Você não possui a chave para abrir esta porta.");
+			}
+		}
+	}
+
+	public String cor() {
+		String cor = "";
+		while (cor.equals("")) {
+			int a = (int) (1 + (Math.random() * 10));
+			switch (a) {
+			case 1:
+				cor = "Verde";
+				break;
+			case 3:
+				cor = "Vermelha";
+				break;
+			case 5:
+				cor = "Amarela";
+				break;
+			case 7:
+				cor = "Azul";
+				break;
+			default:
+				cor = "Marrom";
+				break;
+			}
+		}
+		return cor;
+	}
+
+	public void pegarTesouro(String opcao) {
+
+		String aux = "";
+
+		if (opcao.equals("Pegar Arma")) {
+			if (!tesouro[posicao][1].equals("N")) {
+				aux = i.listaarma();
+				i.getarma(tesouro[posicao][1]);
+				tesouro[posicao][1] = aux;
+			} else {
+				System.out.println("Não há arma no tesouro");
+			}
+		}
+		if (opcao.equals("Pegar Armadura")) {
+			if (!tesouro[posicao][2].equals("N")) {
+				aux = i.listaarmadura();
+				i.getarmadura(tesouro[posicao][2]);
+				tesouro[posicao][2] = aux;
+			} else {
+				System.out.println("Não há armadura no tesouro");
+			}
+		}
+		if (opcao.equals("Pegar Chave")) {
+			if (!tesouro[posicao][3].equals("N")) {
+				aux = i.listatesouro();
+				i.gettesouro(tesouro[posicao][3]);
+				tesouro[posicao][3] = aux;
+			} else {
+				System.out.println("Não há Chave no tesouro");
+			}
+		}
+		if (opcao.equals("Pegar Cura")) {
+			if (!tesouro[posicao][4].equals("N")) {
+				aux = i.listatesouro();
+				i.gettesouro(tesouro[posicao][4]);
+				tesouro[posicao][4] = aux;
+			} else {
+				System.out.println("Não há Poção de Cura no tesouro");
+			}
+		}
+		if (opcao.equals("Pegar Fogo")) {
+			if (!tesouro[posicao][5].equals("N")) {
+				aux = i.listatesouro();
+				i.gettesouro(tesouro[posicao][5]);
+				tesouro[posicao][5] = aux;
+			} else {
+				System.out.println("Não há Fogo do Dragão no tesouro");
+			}
+		}
+	}
+
+	// Desarma a armadilha.
+	public void desarmarArmadilha() {
+
+		int a = (int) (1 + (Math.random() * 10));
+		switch (a) {
+		case 5:
+			System.out.println("Você não conseguiu desarmar a armadilha. \n");
+			break;
+		default:
+			System.out.println("Você conseguiu desarmar a armadilha. \n");
+			trap[posicao][nDirecao] = "N";
+			break;
+		}
+	}
+
+	// gera o combate entre o personagem e os inimigos
+	public String combate(int posicao, int nDirecao) {
+		Scanner entra = new Scanner(System.in);
+
+		String sa = "" + posicao;
+		String di = "" + nDirecao;
+		for (int i = 0; i < 1000; i++) {
+			if (dadosInimigo[i][2].equals(sa)) {
+				if (dadosInimigo[i][3].equals(di)) {
+					posicao = i;
+					break;
+				}
+			}
+		}
+
+		String aux = "";
+		aux = i.listatesouro();
+		int a = 0, vida = 0;
+
+		if (!aux.equals(null)) {
+			if (aux.equals("Fogo")) {
+				System.out.println("Atacar com Arma ou com Fogo do Dragão?");
+				aux = entra.nextLine();
+				if (aux.equals("Usar Fogo")) {
+					return "N";
+				}
+			}
+		}
+
+		a = p.dano(i.listaarma());
+		aux = dadosInimigo[posicao][4];
+		int b = Integer.parseInt(aux);
+		vida = b - a;
+		System.out.println("Você acertou o " + dadosInimigo[posicao][1]
+				+ " com " + a + " pontos de dano. \n");
+		dadosInimigo[posicao][4] = "" + vida;
+
+		if (vida > 0) {
+			a = ini.ataque(dadosInimigo[posicao][1]);
+			System.out.println("O " + dadosInimigo[posicao][1]
+					+ " acertou você com " + a + " pontos de dano. \n");
+			a = p.vida(a, i.listaarmadura());
+			return dadosInimigo[posicao][1];
+		} else {
+			System.out.println("Você matou o " + dadosInimigo[posicao][1]
+					+ "\n");
+			return "N";
+		}
+
+	}
+
+	public void geraInimigo(String Tipo, int posicao, int nDirecao) {
+
+		int a = 0;
+
+		for (int i = 0; i < 1000; i++) {
+			if (dadosInimigo[i][1].equals("N")) {
+				dadosInimigo[i][1] = Tipo;
+				dadosInimigo[i][2] = "" + posicao;
+				dadosInimigo[i][3] = "" + nDirecao;
+				a = ini.vida(Tipo);
+				dadosInimigo[i][4] = "" + a;
+				break;
+			}
+		}
+	}
+
+	public void listaMochila() {
+
+		String aux = "";
+		String a = "";
+		aux = i.listaarma();
+		a += "Arma: " + aux + "\n";
+		aux = i.listaarmadura();
+		a += "Armadura: " + aux + "\n";
+		aux = i.listatesouro();
+		a += "Tesouro: " + aux + "\n";
+		System.out.println(a);
+	}
+
+	// GERA O DANO POR PASSAR EM UM ARMADILHA NÃO DESARMADA
+	public void danoArmadilha() {
+
+		System.out
+				.println("Você não desarmou a armadilha e foi vítima dela. \n");
+
+		// calcula o dano
+		int dano = (int) (1 + (Math.random() * 10));
+
+		// cria o objeto da classe personagem para enviar o dano inflingido pela
+		// armadilha
+		personagem p = new personagem();
+		dano = p.vida(dano, i.listaarmadura());
+	}
+
+}
+
+public class TipoInimigo {
+
+	public String Tipo() {
+		String inimigo = "";
+		int a = (int) (1 + (Math.random() * 8));
+		switch (a) {
+		case 1:
+			inimigo = "Goblin";
+			break;
+		case 2:
+			inimigo = "Orc";
+			break;
+		case 3:
+			inimigo = "Trol";
+			break;
+		case 4:
+			inimigo = "N";
+			break;
+		case 5:
+			inimigo = "N";
+			break;
+		case 6:
+			inimigo = "N";
+			break;
+		case 7:
+			inimigo = "N";
+			break;
+		case 8:
+			inimigo = "N";
+			break;
+		}
+		return inimigo;
+	}
+
+	// gera atque do inimigo
+	public int vida(String inimigo) {
+		int a = 0;
+		if (inimigo.equals("Goblin")) {
+			a = (int) (2 + (Math.random() * 2));
+		}
+		if (inimigo.equals("Orc")) {
+			a = (int) (3 + (Math.random() * 3));
+		}
+		if (inimigo.equals("Trol")) {
+			a = (int) (4 + (Math.random() * 4));
+		}
+		return a;
+	}
+
+	// Gera ataque do inimigo
+	public int ataque(String inimigo) {
+		int a = 0;
+		if (inimigo.equals("Goblin")) {
+			a = (int) (1 + (Math.random() * 2));
+		}
+		if (inimigo.equals("Orc")) {
+			a = (int) (2 + (Math.random() * 3));
+		}
+		if (inimigo.equals("Trol")) {
+			a = (int) (4 + (Math.random() * 3));
+		}
+		return a;
+	}
+
+	Inventario i = new Inventario();
+
+	public String inventario[][] = new String[2][4];
+
+	// 1 - arma;
+	// 2 - tesouro;
+	// 3 - armadura;
+
+	public void criaInventario() {
+		inventario[1][1] = "Faca";
+		inventario[1][2] = "Cura";
+		inventario[1][3] = "";
+	}
+
+	public String listaarma() {
+		String aux = inventario[1][1];
+		return aux;
+	}
+
+	public String listatesouro() {
+		String aux = inventario[1][2];
+		return aux;
+	}
+
+	public String listaarmadura() {
+		String aux = inventario[1][3];
+		return aux;
+	}
+
+	public String getarma(String a) {
+		Scanner entra = new Scanner(System.in);
+		String aux = "";
+		if (inventario[1][1].equals("")) {
+			inventario[1][1] = a;
+		} else {
+			aux += "Voce esta carregando " + inventario[1][1] + "\n";
+			aux += "Deseja trocar por " + a + "? \n";
+			aux += "Digite: S -> Sim; N-> Nao \n";
+			System.out.println(aux);
+			aux = entra.next();
+			if (aux.equals("S")) {
+				inventario[1][1] = a;
+			}
+		}
+		return inventario[1][1];
+	}
+
+	public String gettesouro(String a) {
+		Scanner entra = new Scanner(System.in);
+		String aux = "";
+		if (inventario[1][2].equals("")) {
+			inventario[1][2] = a;
+		} else {
+			aux += "Voce esta carregando " + inventario[1][2] + "\n";
+			aux += "Deseja trocar por " + a + "? \n";
+			aux += "Digite: S -> Sim; N-> Nao \n";
+			System.out.println(aux);
+			aux = entra.next();
+			if (aux.equals("S")) {
+				inventario[1][2] = a;
+			}
+		}
+		return inventario[1][2];
+	}
+
+	public String getarmadura(String a) {
+		Scanner entra = new Scanner(System.in);
+		String aux = "";
+		if (inventario[1][3].equals("")) {
+			inventario[1][3] = a;
+		} else {
+			aux += "Voce esta carregando " + inventario[1][3] + "\n";
+			aux += "Deseja trocar por " + a + "? \n";
+			aux += "Digite: S -> Sim; N-> Nao \n";
+			System.out.println(aux);
+			aux = entra.next();
+			if (aux.equals("S")) {
+				inventario[1][3] = a;
+			}
+		}
+		return inventario[1][3];
+	}
+}
+
+class personagem {
+
+	public String inventario = "";
+	public int vida = 10, dano = 3;
+
+	public int vida(int dano, String Armadura) {
+		String a = "";
+
+		if (dano > 0) {
+
+			a = Armadura;
+
+			if (a.equals("Couro")) {
+				dano = dano - 1;
+				System.out
+						.println("Sua armadura de Couro absorveu 1 de dano \n");
+			}
+			if (a.equals("Metal")) {
+				dano = dano - 2;
+				System.out
+						.println("Sua armadura de Metal absorveu 2 de dano \n");
+			}
+			if (a.equals("Mithrill")) {
+				dano = dano - 3;
+				System.out
+						.println("Sua armadura de Mithrill absorveu 3 de dano \n");
+			}
+			vida = vida - dano;
+		} else {
+			vida = 10;
+			System.out.println("Voce tomou uma pocao de cura.");
+		}
+
+		System.out.println("Vida: " + vida);
+
+		if (vida <= 0) {
+			System.out.println("Voce morreu");
+			System.exit(0);
+		}
+
+		return vida;
+	}
+
+	public int dano(String arma) {
+
+		int dano = 2;
+		if (arma.equals("Faca")) {
+			dano = 4;
+		}
+		if (arma.equals("Espada")) {
+			dano = 5;
+		}
+		if (arma.equals("Cimitarra")) {
+			dano = 6;
+		}
+
+		dano = (int) (Math.random() * dano);
+
+		return dano;
+	}
+}
+
+class tesouro {
+
+	public String Chave() {
+		String chave = "";
+		while (chave.equals("")) {
+			int a = (int) (1 + (Math.random() * 8));
+			switch (a) {
+			case 1:
+				chave = "Azul";
+				break;
+			case 3:
+				chave = "Amarela";
+				break;
+			case 5:
+				chave = "Verde";
+				break;
+			case 7:
+				chave = "Vermelha";
+				break;
+			default:
+				chave = "N";
+			}
+		}
+		return chave;
+	}
+
+	public String arma() {
+		String arma = "";
+		while (arma.equals("")) {
+			int a = (int) (1 + (Math.random() * 14));
+			switch (a) {
+			case 1:
+				arma = "Faca";
+				break;
+			case 3:
+				arma = "Cimitarra";
+				break;
+			case 5:
+				arma = "Espada";
+				break;
+			case 7:
+				arma = "Faca";
+				break;
+			case 9:
+				arma = "Espada";
+				break;
+			case 11:
+				arma = "Faca";
+				break;
+			default:
+				arma = "N";
+			}
+		}
+		return arma;
+	}
+
+	public String armadura() {
+		String armadura = "";
+		while (armadura.equals("")) {
+			int a = (int) (1 + (Math.random() * 14));
+			switch (a) {
+			case 1:
+				armadura = "Couro";
+				break;
+			case 3:
+				armadura = "Mitrhrill";
+				break;
+			case 5:
+				armadura = "Metal";
+				break;
+			case 7:
+				armadura = "Couro";
+				break;
+			case 9:
+				armadura = "Metal";
+				break;
+			case 11:
+				armadura = "Couro";
+				break;
+			default:
+				armadura = "N";
+			}
+		}
+		return armadura;
+	}
+
+	public String curaPocao() {
+		String pocao = "";
+		int a = (int) (1 + (Math.random() * 10));
+		switch (a) {
+		case 2:
+			pocao = "Cura";
+			break;
+		case 4:
+			pocao = "Cura";
+			break;
+		case 5:
+			pocao = "Cura";
+			break;
+		case 6:
+			pocao = "Cura";
+			break;
+		case 8:
+			pocao = "cura";
+			break;
+		default:
+			pocao = "N";
+		}
+		return pocao;
+	}
+
+}
